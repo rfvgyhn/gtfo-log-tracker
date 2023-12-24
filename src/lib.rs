@@ -1,19 +1,46 @@
 use crate::game_data::StoryLog;
+use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use time::{Date, Month, PrimitiveDateTime, Time};
 
 pub mod game_data;
+pub mod gui;
 mod play_fab;
 
-type Error = Box<dyn std::error::Error>;
+#[derive(Default)]
+pub struct Options {
+    pub gtfo_path: PathBuf,
+    pub only_parse_from_logs: bool,
+}
 
-pub async fn get_read_log_ids_from_play_fab() -> Result<Vec<u32>, Error> {
+pub async fn get_logs(gtfo_path: PathBuf, only_parse_from_logs: bool) -> Result<Vec<StoryLog>> {
+    let mut all_logs = game_data::load_logs()?;
+    let read_log_ids = if only_parse_from_logs {
+        get_read_log_ids_from_log_file(&gtfo_path, &all_logs)
+    } else {
+        get_read_log_ids_from_play_fab().await.or_else(|e| {
+            println!(
+                "Unable to get read log data from PlayFab: {}. Falling back to parsing log files.",
+                e
+            );
+            get_read_log_ids_from_log_file(&gtfo_path, &all_logs)
+        })
+    }?;
+
+    for log in all_logs.iter_mut() {
+        log.read = read_log_ids.contains(&log.id);
+    }
+
+    Ok(all_logs)
+}
+
+async fn get_read_log_ids_from_play_fab() -> Result<HashSet<u32>> {
     match steamworks::Client::init_app(493520) {
         Ok((steam_client, _)) => {
             let (auth_ticket, ticket_bytes) = steam_client.user().authentication_session_ticket();
@@ -27,16 +54,14 @@ pub async fn get_read_log_ids_from_play_fab() -> Result<Vec<u32>, Error> {
                 .user()
                 .cancel_authentication_ticket(auth_ticket);
 
-            user_data.map(|d| d.read_logs.value)
+            let ids = user_data.map(|d| d.read_logs.value)?;
+            Ok(HashSet::from_iter(ids))
         }
-        Err(e) => {
-            eprintln!("Couldn't init steam");
-            Err(Box::from(e))
-        }
+        Err(e) => Err(anyhow!(e)),
     }
 }
 
-pub fn get_read_log_ids_from_log_file(path: &str, logs: &[StoryLog]) -> Result<Vec<u32>, Error> {
+fn get_read_log_ids_from_log_file(path: &Path, logs: &[StoryLog]) -> Result<HashSet<u32>> {
     let log_path = fs::read_dir(path)?
         .filter_map(Result::ok)
         .filter_map(|e| {
@@ -46,11 +71,14 @@ pub fn get_read_log_ids_from_log_file(path: &str, logs: &[StoryLog]) -> Result<V
         .max_by(|(date1, _), (date2, _)| date1.cmp(date2))
         .map(|(_, path)| path)
         .or_else(|| {
-            let player_path = Path::new(path).join("Player.log");
+            let player_path = path.join("Player.log");
             player_path.exists().then_some(player_path)
         })
         .ok_or_else(|| {
-            format!("Couldn't find any CLIENT/MASTER.txt files or Player.log in '{path}'")
+            anyhow!(
+                "Couldn't find any CLIENT/MASTER.txt files or Player.log in '{}'",
+                path.display()
+            )
         })?;
     let previously_read_regex =
         Regex::new(r"Logs Read: \d+ / \d+ \| IDs: \[(\d+(?:,\s*\d+)*)]\s*$")?;
@@ -78,7 +106,7 @@ pub fn get_read_log_ids_from_log_file(path: &str, logs: &[StoryLog]) -> Result<V
         }
     }
 
-    Ok(read_ids.into_iter().collect())
+    Ok(read_ids)
 }
 
 fn parse_file_name(path: &Path) -> Option<PrimitiveDateTime> {

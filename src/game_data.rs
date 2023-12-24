@@ -1,14 +1,16 @@
+use anyhow::Result;
 use serde::Deserialize;
-use std::error::Error;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct StoryLog {
     pub id: u32,
     pub locations: Vec<Location>,
+    #[serde(skip)]
+    pub read: bool,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Location {
     pub rundown: u8,
@@ -27,7 +29,7 @@ pub fn get_id_from_name(name: &str, logs: &[StoryLog]) -> Option<u32> {
     })
 }
 
-pub fn load_logs() -> Result<Vec<StoryLog>, Box<dyn Error>> {
+pub fn load_logs() -> Result<Vec<StoryLog>> {
     let logs = serde_json::from_str::<Vec<StoryLog>>(include_str!("../data/logs.json"))?;
 
     Ok(logs)

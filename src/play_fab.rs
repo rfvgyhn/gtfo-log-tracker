@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{Display, Formatter, Write};
 
@@ -79,15 +80,11 @@ pub struct ReadLogs {
     pub value: Vec<u32>,
 }
 
-type Error = Box<dyn std::error::Error>;
 pub struct SessionTicket(String);
 
 const GTFO_TITLE_ID: &str = "8f9";
 
-pub async fn login(
-    http_client: &reqwest::Client,
-    steam_ticket: &[u8],
-) -> Result<SessionTicket, Error> {
+pub async fn login(http_client: &reqwest::Client, steam_ticket: &[u8]) -> Result<SessionTicket> {
     let req_body = LoginRequest::new(GTFO_TITLE_ID, to_hex(steam_ticket));
     let res = http_client
         .post(format!(
@@ -102,14 +99,14 @@ pub async fn login(
 
     match res {
         ApiResponse::Success { data } => Ok(SessionTicket(data.session_ticket)),
-        ApiResponse::Error(e) => Err(Box::from(format!("{e}"))),
+        ApiResponse::Error(e) => Err(anyhow!("{e}")),
     }
 }
 
 pub async fn get_user_data(
     http_client: &reqwest::Client,
     session_ticket: SessionTicket,
-) -> Result<UserData, Error> {
+) -> Result<UserData> {
     let res = http_client
         .post(format!(
             "https://{}.playfabapi.com/Client/GetUserData",
@@ -124,7 +121,7 @@ pub async fn get_user_data(
 
     match res {
         ApiResponse::Success { data } => Ok(data.data),
-        ApiResponse::Error(e) => Err(Box::from(format!("{e}"))),
+        ApiResponse::Error(e) => Err(anyhow!("{e}")),
     }
 }
 
