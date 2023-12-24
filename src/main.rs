@@ -3,7 +3,6 @@ use gtfo_log_tracker::gui::GtfoLogTracker;
 use gtfo_log_tracker::Options;
 use iced::Application;
 use std::env;
-use std::fmt::Write;
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();

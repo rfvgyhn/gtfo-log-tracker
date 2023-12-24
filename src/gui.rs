@@ -1,7 +1,9 @@
 use crate::game_data::StoryLog;
 use crate::{get_logs, Options};
 use iced::alignment::Horizontal;
-use iced::widget::{checkbox, column, container, responsive, row, scrollable, text, Text};
+use iced::widget::{
+    checkbox, column, container, responsive, row, scrollable, text, text_input, Responsive, Text,
+};
 use iced::{
     alignment, executor, font, window, Alignment, Application, Command, Element, Font, Length,
     Renderer, Settings, Theme,
@@ -37,6 +39,7 @@ pub enum Message {
     TableResizing(usize, f32),
     TableResized,
     ToggleHideRead(bool),
+    FilterChanged(String),
     FontLoaded(Result<(), font::Error>),
     Error(String),
 }
@@ -71,21 +74,7 @@ impl Application for GtfoLogTracker {
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::DataLoaded(logs) => {
-                let view = MainView {
-                    logs,
-                    hide_read: false,
-                    log_table: Table {
-                        columns: vec![
-                            TableColumn::new("", 40.0),
-                            TableColumn::new("Level", 60.0),
-                            TableColumn::new("Zone", 90.0),
-                            TableColumn::new("Name", 130.0),
-                            TableColumn::new("Id", 130.0),
-                        ],
-                        header: scrollable::Id::unique(),
-                        body: scrollable::Id::unique(),
-                    },
-                };
+                let view = MainView::new(logs);
                 *self = GtfoLogTracker::Loaded(view);
             }
             Message::SyncHeader(offset) => {
@@ -114,6 +103,11 @@ impl Application for GtfoLogTracker {
                     view.hide_read = hide
                 }
             }
+            Message::FilterChanged(text) => {
+                if let GtfoLogTracker::Loaded(view) = self {
+                    view.filter = text;
+                }
+            }
             Message::Error(e) => *self = GtfoLogTracker::Error(e),
             Message::FontLoaded(Err(e)) => eprintln!("{:?}", e),
             Message::FontLoaded(Ok(())) => {}
@@ -128,53 +122,7 @@ impl Application for GtfoLogTracker {
                 column![text("Loading your progress"), Spinner::new()]
                     .align_items(Alignment::Center),
             ),
-            GtfoLogTracker::Loaded(view) => {
-                let header: Element<_> = row![
-                    container(text(format!(
-                        "{}/{} Read",
-                        view.logs.iter().filter(|l| l.read).count(),
-                        view.logs.len()
-                    )))
-                    .align_x(Horizontal::Left)
-                    .width(Length::Fill),
-                    container(checkbox(
-                        "Hide Read",
-                        view.hide_read,
-                        Message::ToggleHideRead
-                    ))
-                    .width(Length::Fill)
-                    .align_x(Horizontal::Right)
-                ]
-                .padding(5)
-                .spacing(10)
-                .into();
-                let log_table = responsive(|size| {
-                    let filtered_rows: Vec<Row> = view
-                        .logs
-                        .iter()
-                        .filter_map(|r| match (view.hide_read, r.read) {
-                            (true, true) => None,
-                            _ => Some(map_log_to_rows(r)),
-                        })
-                        .flatten()
-                        .collect();
-
-                    table(
-                        view.log_table.header.clone(),
-                        view.log_table.body.clone(),
-                        &view.log_table.columns,
-                        &filtered_rows,
-                        Message::SyncHeader,
-                    )
-                    .on_column_resize(Message::TableResizing, Message::TableResized)
-                    .min_width(size.width)
-                    .into()
-                });
-
-                let content = column![header, log_table];
-
-                layout(container(content))
-            }
+            GtfoLogTracker::Loaded(view) => layout(column![header(view), log_table(view)]),
             GtfoLogTracker::Error(e) => layout(text(e)),
         }
     }
@@ -189,6 +137,71 @@ fn layout<'a>(
         .center_y()
         .center_x()
         .into()
+}
+
+fn header(view: &MainView) -> Element<'_, Message, Renderer<Theme>> {
+    row![
+        container(text(format!(
+            "{}/{} Read",
+            view.logs.iter().filter(|l| l.read).count(),
+            view.logs.len()
+        )))
+        .align_x(Horizontal::Left)
+        .width(Length::FillPortion(1)),
+        container(
+            text_input("Filter", view.filter.as_str())
+                .on_input(Message::FilterChanged)
+                .padding(10)
+        )
+        .width(Length::FillPortion(2)),
+        container(checkbox(
+            "Hide Read",
+            view.hide_read,
+            Message::ToggleHideRead
+        ))
+        .width(Length::FillPortion(1))
+        .align_x(Horizontal::Right)
+    ]
+    .padding(5)
+    .spacing(10)
+    .align_items(Alignment::Center)
+    .into()
+}
+
+fn log_table(view: &MainView) -> Responsive<'_, Message, Renderer<Theme>> {
+    responsive(|size| {
+        let filtered_rows: Vec<Row> = view
+            .logs
+            .iter()
+            .filter_map(|r| match (view.hide_read, r.read) {
+                (true, true) => None,
+                _ => Some(map_log_to_rows(r)),
+            })
+            .flatten()
+            .filter(|r| {
+                if view.filter.is_empty() {
+                    true
+                } else {
+                    let f = view.filter.to_ascii_lowercase();
+                    r.level.to_ascii_lowercase().contains(&f)
+                        || r.name.to_ascii_lowercase().contains(&f)
+                        || r.zone.to_ascii_lowercase().contains(&f)
+                        || r.id.to_string().contains(&f)
+                }
+            })
+            .collect();
+
+        table(
+            view.log_table.header.clone(),
+            view.log_table.body.clone(),
+            &view.log_table.columns,
+            &filtered_rows,
+            Message::SyncHeader,
+        )
+        .on_column_resize(Message::TableResizing, Message::TableResized)
+        .min_width(size.width)
+        .into()
+    })
 }
 
 impl<'a, 'b> table::Column<'a, 'b, Message, Renderer> for TableColumn {
@@ -270,7 +283,29 @@ fn icon_read(read: bool) -> Text<'static> {
 pub struct MainView {
     logs: Vec<StoryLog>,
     hide_read: bool,
+    filter: String,
     log_table: Table,
+}
+
+impl MainView {
+    fn new(logs: Vec<StoryLog>) -> Self {
+        Self {
+            logs,
+            hide_read: false,
+            filter: "".to_string(),
+            log_table: Table {
+                columns: vec![
+                    TableColumn::new("", 40.0),
+                    TableColumn::new("Level", 60.0),
+                    TableColumn::new("Zone", 90.0),
+                    TableColumn::new("Name", 130.0),
+                    TableColumn::new("Id", 130.0),
+                ],
+                header: scrollable::Id::unique(),
+                body: scrollable::Id::unique(),
+            },
+        }
+    }
 }
 
 struct Table {
