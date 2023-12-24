@@ -12,6 +12,7 @@ use time::{Date, Month, PrimitiveDateTime, Time};
 pub mod game_data;
 pub mod gui;
 mod play_fab;
+mod steam;
 
 #[derive(Default)]
 pub struct Options {

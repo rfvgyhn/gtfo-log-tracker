@@ -1,5 +1,7 @@
-use anyhow::Result;
+use crate::steam;
+use anyhow::{anyhow, Result};
 use serde::Deserialize;
+use std::path::PathBuf;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -33,4 +35,17 @@ pub fn load_logs() -> Result<Vec<StoryLog>> {
     let logs = serde_json::from_str::<Vec<StoryLog>>(include_str!("../data/logs.json"))?;
 
     Ok(logs)
+}
+
+#[cfg(target_os = "linux")]
+pub fn find_user_data_path() -> Result<PathBuf> {
+    steam::find_proton_app_data_path()
+        .map(|p| p.join("LocalLow/10 Chambers Collective/GTFO"))
+        .ok_or_else(|| anyhow!("Couldn't find compatdata AppData path"))
+}
+
+#[cfg(target_os = "windows")]
+pub fn find_user_data_path() -> Result<PathBuf> {
+    let app_data = std::env::var("APPDATA").map(PathBuf::from)?;
+    app_data.join(r"LocalLow\10 Chambers Collective\GTFO")
 }
