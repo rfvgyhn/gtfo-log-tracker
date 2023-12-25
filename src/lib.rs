@@ -1,7 +1,7 @@
 use crate::game_data::StoryLog;
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
-use regex::Regex;
+use regex::{Match, Regex};
 use std::collections::HashSet;
 use std::fs;
 use std::fs::File;
@@ -20,12 +20,13 @@ pub struct Options {
     pub only_parse_from_logs: bool,
 }
 
-static FILE_NAME_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r"GTFO\.(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2})_[A-Za-z0-9_-]+(?:CLIENT|MASTER)\.txt",
-    )
-    .unwrap()
-});
+static FILE_NAME_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"GTFO\.(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2})_.*\.txt").unwrap());
+pub static INGAME_READ_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"([A-Z0-9]{3,4}-[A-Z0-9]{3,6}(?:-[A-Z0-9]{3})?)").unwrap());
+
+pub static LEVEL_CHANGE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"SelectActiveExpedition.*(Local_\d+,\d,\d)").unwrap());
 
 pub async fn get_logs(
     gtfo_path: PathBuf,
@@ -94,30 +95,40 @@ fn get_read_log_ids_from_log_dir(path: &Path, logs: &[StoryLog]) -> Result<HashS
     Ok(read_ids)
 }
 
-pub fn parse_read_ids(lines: impl Iterator<Item = String>, logs: &[StoryLog]) -> Vec<u32> {
+pub fn try_get_log_id(m: &Match, all_logs: &[StoryLog]) -> Option<u32> {
+    let mut name = String::new();
+    m.as_str().clone_into(&mut name);
+    game_data::get_id_from_name(&name, all_logs)
+}
+
+pub fn try_get_new_level(m: &Match) -> Option<String> {
+    let mut name = String::new();
+    m.as_str().clone_into(&mut name);
+    game_data::get_level_from_local(&name)
+}
+
+fn parse_read_ids(lines: impl Iterator<Item = String>, logs: &[StoryLog]) -> Vec<u32> {
     static PREVIOUSLY_READ_REGEX: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"Logs Read: \d+ / \d+ \| IDs: \[(\d+(?:,\s*\d+)*)]\s*$").unwrap());
-    static INGAME_READ_REGEX: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"([A-Z0-9]{3,4}-[A-Z0-9]{3,6}(?:-[A-Z0-9]{3})?)").unwrap());
     let mut read_ids = Vec::new();
 
     for line in lines {
-        if let Some(captures) = PREVIOUSLY_READ_REGEX.captures(line.as_str()) {
-            if let Some(m) = captures.get(1) {
-                let ids = m
-                    .as_str()
-                    .split(',')
-                    .filter_map(|id| id.trim().parse::<u32>().ok());
-                read_ids.extend(ids);
-            }
+        if let Some(m) = PREVIOUSLY_READ_REGEX
+            .captures(line.as_str())
+            .and_then(|c| c.get(1))
+        {
+            let ids = m
+                .as_str()
+                .split(',')
+                .filter_map(|id| id.trim().parse::<u32>().ok());
+            read_ids.extend(ids);
         }
 
-        if let Some(m) = INGAME_READ_REGEX.find(line.as_str()) {
-            let mut name = String::new();
-            m.as_str().clone_into(&mut name);
-            if let Some(id) = game_data::get_id_from_name(&name, logs) {
-                read_ids.push(id);
-            }
+        if let Some(id) = INGAME_READ_REGEX
+            .find(line.as_str())
+            .and_then(|m| try_get_log_id(&m, logs))
+        {
+            read_ids.push(id);
         }
     }
 
@@ -147,6 +158,30 @@ fn parse_file_name(path: &Path) -> Option<PrimitiveDateTime> {
 
 #[cfg(test)]
 mod tests {
+    mod file_contains_log_ids {
+        use crate::file_contains_log_ids;
+
+        #[test]
+        fn matches_client_file() {
+            let result = file_contains_log_ids("GTFO.2023.12.22.00.25.30_NoName_CLIENT.txt");
+
+            assert!(result)
+        }
+
+        #[test]
+        fn matches_master_file() {
+            let result = file_contains_log_ids("GTFO.2023.12.22.00.25.30_NoName_MASTER.txt");
+
+            assert!(result)
+        }
+
+        #[test]
+        fn matches_single_player_file() {
+            let result = file_contains_log_ids("GTFO.2023.12.22.00.25.30_NICKNAME_NETSTATUS.txt");
+
+            assert!(result)
+        }
+    }
     mod parse_file_name {
         use crate::parse_file_name;
         use std::path::PathBuf;

@@ -1,5 +1,7 @@
 use crate::game_data::StoryLog;
-use crate::{file_contains_log_ids, parse_read_ids};
+use crate::{
+    file_contains_log_ids, try_get_log_id, try_get_new_level, INGAME_READ_REGEX, LEVEL_CHANGE_REGEX,
+};
 use futures::{
     channel::mpsc::{channel, Receiver},
     SinkExt, StreamExt,
@@ -21,7 +23,12 @@ fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Resul
     Ok((watcher, rx))
 }
 
-pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<u32> {
+pub enum GameEvent {
+    LogRead(u32),
+    LevelSelected(String),
+}
+
+pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<GameEvent> {
     struct Watch;
 
     async_watcher()
@@ -45,8 +52,12 @@ pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<u32> {
                             })) => {
                                 println!("{:?}", paths.first());
                                 if let Some(path) = paths.first() {
-                                    if let Some(id) = get_newest_id(path, &logs) {
-                                        let _ = output.send(id).await;
+                                    let (id, level) = get_latest_data(path, &logs);
+                                    if let Some(id) = id {
+                                        let _ = output.send(GameEvent::LogRead(id)).await;
+                                    }
+                                    if let Some(level) = level {
+                                        let _ = output.send(GameEvent::LevelSelected(level)).await;
                                     }
                                 }
                             }
@@ -65,19 +76,29 @@ pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<u32> {
         })
 }
 
-fn get_newest_id(path: &Path, all_logs: &[StoryLog]) -> Option<u32> {
+fn get_latest_data(path: &Path, all_logs: &[StoryLog]) -> (Option<u32>, Option<String>) {
+    let mut latest_id: Option<u32> = None;
+    let mut latest_level: Option<String> = None;
     let should_check_file = path
         .file_name()
         .map(|s| file_contains_log_ids(&s.to_string_lossy()))
         .unwrap_or(false);
+
     if should_check_file {
         if let Ok(log_file) = File::open(path) {
-            let lines = BufReader::new(log_file)
-                .lines()
-                .map_while(std::result::Result::ok);
-            return parse_read_ids(lines, all_logs).last().copied();
+            let lines = BufReader::new(log_file).lines().map_while(Result::ok);
+
+            for line in lines {
+                let line = line.as_str();
+                if let Some(m) = INGAME_READ_REGEX.find(line) {
+                    latest_id = try_get_log_id(&m, all_logs);
+                }
+                if let Some(m) = LEVEL_CHANGE_REGEX.captures(line).and_then(|c| c.get(1)) {
+                    latest_level = try_get_new_level(&m);
+                }
+            }
         }
     }
 
-    None
+    (latest_id, latest_level)
 }

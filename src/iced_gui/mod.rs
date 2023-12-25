@@ -1,10 +1,13 @@
 mod game_log_watcher;
 
 use crate::game_data::StoryLog;
+use crate::iced_gui::game_log_watcher::GameEvent;
 use crate::{get_logs, Options};
 use iced::alignment::Horizontal;
+use iced::widget::tooltip::Position;
 use iced::widget::{
-    checkbox, column, container, responsive, row, scrollable, text, text_input, Responsive, Text,
+    checkbox, column, container, responsive, row, scrollable, text, text_input, tooltip,
+    Responsive, Text,
 };
 use iced::{
     alignment, executor, font, window, Alignment, Application, Command, Element, Font, Length,
@@ -43,10 +46,21 @@ pub enum Message {
     TableResizing(usize, f32),
     TableResized,
     ToggleHideRead(bool),
+    ToggleAutoFilter(bool),
     FilterChanged(String),
     FontLoaded(Result<(), font::Error>),
     Error(String),
     NewLogRead(u32),
+    LevelChanged(String),
+}
+
+impl From<GameEvent> for Message {
+    fn from(value: GameEvent) -> Self {
+        match value {
+            GameEvent::LogRead(id) => Message::NewLogRead(id),
+            GameEvent::LevelSelected(name) => Message::LevelChanged(name),
+        }
+    }
 }
 
 impl Application for GtfoLogTracker {
@@ -117,9 +131,21 @@ impl Application for GtfoLogTracker {
                     view.hide_read = hide
                 }
             }
+            Message::ToggleAutoFilter(hide) => {
+                if let GtfoLogTracker::Loaded(view) = self {
+                    view.auto_filter = hide
+                }
+            }
             Message::FilterChanged(text) => {
                 if let GtfoLogTracker::Loaded(view) = self {
                     view.filter = text;
+                }
+            }
+            Message::LevelChanged(level_name) => {
+                if let GtfoLogTracker::Loaded(view) = self {
+                    if view.auto_filter {
+                        view.filter = level_name;
+                    }
                 }
             }
             Message::Error(e) => *self = GtfoLogTracker::Error(e),
@@ -144,7 +170,7 @@ impl Application for GtfoLogTracker {
     fn subscription(&self) -> Subscription<Self::Message> {
         if let GtfoLogTracker::Loaded(view) = self {
             game_log_watcher::watch(view.gtfo_path.clone(), view.all_logs.clone())
-                .map(Message::NewLogRead)
+                .map(Message::from)
         } else {
             Subscription::none()
         }
@@ -177,17 +203,45 @@ fn header(view: &MainView) -> Element<'_, Message, Renderer<Theme>> {
                 .padding(10)
         )
         .width(Length::FillPortion(2)),
-        container(checkbox(
-            "Hide Read",
-            view.hide_read,
-            Message::ToggleHideRead
-        ))
+        container(column![
+            option(
+                "Hide Read",
+                view.hide_read,
+                "Only show un-read logs",
+                Position::Left,
+                Message::ToggleHideRead
+            ),
+            option(
+                "Auto Filter",
+                view.auto_filter,
+                "When in-game, automatically filter logs to currently selected expedition",
+                Position::Bottom,
+                Message::ToggleAutoFilter
+            )
+        ])
         .width(Length::FillPortion(1))
         .align_x(Horizontal::Right)
     ]
     .padding(5)
     .spacing(10)
     .align_items(Alignment::Center)
+    .into()
+}
+
+fn option<'a>(
+    label: impl Into<String>,
+    is_checked: bool,
+    tooltip_text: impl ToString,
+    tooltip_pos: Position,
+    f: impl Fn(bool) -> Message + 'a,
+) -> Element<'a, Message, Renderer<Theme>> {
+    tooltip(
+        checkbox(label, is_checked, f).size(15).spacing(5),
+        tooltip_text,
+        tooltip_pos,
+    )
+    .gap(10)
+    .style(iced::theme::Container::Box)
     .into()
 }
 
@@ -312,6 +366,7 @@ pub struct MainView {
     all_logs: Vec<StoryLog>,
     read_log_ids: HashSet<u32>,
     hide_read: bool,
+    auto_filter: bool,
     filter: String,
     log_table: Table,
     gtfo_path: PathBuf,
@@ -324,6 +379,7 @@ impl MainView {
             read_log_ids,
             gtfo_path,
             hide_read: false,
+            auto_filter: true,
             filter: "".to_string(),
             log_table: Table {
                 columns: vec![
