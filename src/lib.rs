@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use time::{Date, Month, PrimitiveDateTime, Time};
 
 pub mod game_data;
-pub mod gui;
+pub mod iced_gui;
 mod play_fab;
 mod steam;
 
@@ -20,25 +20,31 @@ pub struct Options {
     pub only_parse_from_logs: bool,
 }
 
-pub async fn get_logs(gtfo_path: PathBuf, only_parse_from_logs: bool) -> Result<Vec<StoryLog>> {
-    let mut all_logs = game_data::load_logs()?;
+static FILE_NAME_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"GTFO\.(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2})_[A-Za-z0-9_-]+(?:CLIENT|MASTER)\.txt",
+    )
+    .unwrap()
+});
+
+pub async fn get_logs(
+    gtfo_path: PathBuf,
+    only_parse_from_logs: bool,
+) -> Result<(Vec<StoryLog>, HashSet<u32>)> {
+    let all_logs = game_data::load_logs()?;
     let read_log_ids = if only_parse_from_logs {
-        get_read_log_ids_from_log_file(&gtfo_path, &all_logs)
+        get_read_log_ids_from_log_dir(&gtfo_path, &all_logs)
     } else {
         get_read_log_ids_from_play_fab().await.or_else(|e| {
             println!(
                 "Unable to get read log data from PlayFab: {}. Falling back to parsing log files.",
                 e
             );
-            get_read_log_ids_from_log_file(&gtfo_path, &all_logs)
+            get_read_log_ids_from_log_dir(&gtfo_path, &all_logs)
         })
     }?;
 
-    for log in all_logs.iter_mut() {
-        log.read = read_log_ids.contains(&log.id);
-    }
-
-    Ok(all_logs)
+    Ok((all_logs, read_log_ids))
 }
 
 async fn get_read_log_ids_from_play_fab() -> Result<HashSet<u32>> {
@@ -62,7 +68,7 @@ async fn get_read_log_ids_from_play_fab() -> Result<HashSet<u32>> {
     }
 }
 
-fn get_read_log_ids_from_log_file(path: &Path, logs: &[StoryLog]) -> Result<HashSet<u32>> {
+fn get_read_log_ids_from_log_dir(path: &Path, logs: &[StoryLog]) -> Result<HashSet<u32>> {
     let log_path = fs::read_dir(path)?
         .filter_map(Result::ok)
         .filter_map(|e| {
@@ -81,14 +87,22 @@ fn get_read_log_ids_from_log_file(path: &Path, logs: &[StoryLog]) -> Result<Hash
                 path.display()
             )
         })?;
-    let previously_read_regex =
-        Regex::new(r"Logs Read: \d+ / \d+ \| IDs: \[(\d+(?:,\s*\d+)*)]\s*$")?;
-    let ingame_read_regex = Regex::new(r"([A-Z0-9]{3,4}-[A-Z0-9]{3,6}(?:-[A-Z0-9]{3})?)")?;
     let log_file = File::open(log_path)?;
-    let mut read_ids = HashSet::new();
+    let lines = BufReader::new(log_file).lines().map_while(Result::ok);
+    let read_ids = HashSet::from_iter(parse_read_ids(lines, logs));
 
-    for line in BufReader::new(log_file).lines().map_while(Result::ok) {
-        if let Some(captures) = previously_read_regex.captures(line.as_str()) {
+    Ok(read_ids)
+}
+
+pub fn parse_read_ids(lines: impl Iterator<Item = String>, logs: &[StoryLog]) -> Vec<u32> {
+    static PREVIOUSLY_READ_REGEX: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"Logs Read: \d+ / \d+ \| IDs: \[(\d+(?:,\s*\d+)*)]\s*$").unwrap());
+    static INGAME_READ_REGEX: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"([A-Z0-9]{3,4}-[A-Z0-9]{3,6}(?:-[A-Z0-9]{3})?)").unwrap());
+    let mut read_ids = Vec::new();
+
+    for line in lines {
+        if let Some(captures) = PREVIOUSLY_READ_REGEX.captures(line.as_str()) {
             if let Some(m) = captures.get(1) {
                 let ids = m
                     .as_str()
@@ -98,22 +112,23 @@ fn get_read_log_ids_from_log_file(path: &Path, logs: &[StoryLog]) -> Result<Hash
             }
         }
 
-        if let Some(m) = ingame_read_regex.find(line.as_str()) {
+        if let Some(m) = INGAME_READ_REGEX.find(line.as_str()) {
             let mut name = String::new();
             m.as_str().clone_into(&mut name);
             if let Some(id) = game_data::get_id_from_name(&name, logs) {
-                read_ids.insert(id);
+                read_ids.push(id);
             }
         }
     }
 
-    Ok(read_ids)
+    read_ids
+}
+
+fn file_contains_log_ids(file_name: &str) -> bool {
+    FILE_NAME_REGEX.is_match(file_name)
 }
 
 fn parse_file_name(path: &Path) -> Option<PrimitiveDateTime> {
-    static FILE_NAME_REGEX: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"GTFO\.(\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2})_[A-Za-z0-9_-]+(?:CLIENT|MASTER)\.txt").unwrap()
-    });
     let file_name = path.file_name()?.to_str().unwrap_or_default();
 
     FILE_NAME_REGEX.captures(file_name)?.get(1).map(|m| {

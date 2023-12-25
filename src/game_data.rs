@@ -7,9 +7,7 @@ use std::path::PathBuf;
 #[serde(rename_all = "camelCase")]
 pub struct StoryLog {
     pub id: u32,
-    pub locations: Vec<Location>,
-    #[serde(skip)]
-    pub read: bool,
+    pub locations: Vec<Location>
 }
 
 #[derive(Deserialize, Debug, Clone)]

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use gtfo_log_tracker::gui::GtfoLogTracker;
+use gtfo_log_tracker::iced_gui::GtfoLogTracker;
 use gtfo_log_tracker::{game_data, Options};
 use iced::Application;
 use std::env;

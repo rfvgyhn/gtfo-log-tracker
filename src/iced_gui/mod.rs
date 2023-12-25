@@ -1,3 +1,5 @@
+mod game_log_watcher;
+
 use crate::game_data::StoryLog;
 use crate::{get_logs, Options};
 use iced::alignment::Horizontal;
@@ -6,11 +8,13 @@ use iced::widget::{
 };
 use iced::{
     alignment, executor, font, window, Alignment, Application, Command, Element, Font, Length,
-    Renderer, Settings, Theme,
+    Renderer, Settings, Subscription, Theme,
 };
 use iced_aw::Spinner;
 use iced_table::table;
+use std::collections::HashSet;
 use std::fmt::Write;
+use std::path::PathBuf;
 
 pub enum GtfoLogTracker {
     Loading,
@@ -34,7 +38,7 @@ impl GtfoLogTracker {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    DataLoaded(Vec<StoryLog>),
+    DataLoaded(Vec<StoryLog>, HashSet<u32>, PathBuf),
     SyncHeader(scrollable::AbsoluteOffset),
     TableResizing(usize, f32),
     TableResized,
@@ -42,6 +46,7 @@ pub enum Message {
     FilterChanged(String),
     FontLoaded(Result<(), font::Error>),
     Error(String),
+    NewLogRead(u32),
 }
 
 impl Application for GtfoLogTracker {
@@ -54,13 +59,15 @@ impl Application for GtfoLogTracker {
         (
             GtfoLogTracker::Loading,
             Command::batch(vec![
-                font::load(include_bytes!("../fonts/icons.ttf").as_slice())
+                font::load(include_bytes!("../../fonts/icons.ttf").as_slice())
                     .map(Message::FontLoaded),
                 Command::perform(
-                    get_logs(options.gtfo_path, options.only_parse_from_logs),
+                    get_logs(options.gtfo_path.clone(), options.only_parse_from_logs),
                     |r| {
-                        r.map(Message::DataLoaded)
-                            .unwrap_or_else(|e| Message::Error(e.to_string()))
+                        r.map(|(all_logs, read_log_ids)| {
+                            Message::DataLoaded(all_logs, read_log_ids, options.gtfo_path)
+                        })
+                        .unwrap_or_else(|e| Message::Error(e.to_string()))
                     },
                 ),
             ]),
@@ -73,9 +80,16 @@ impl Application for GtfoLogTracker {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::DataLoaded(logs) => {
-                let view = MainView::new(logs);
+            Message::DataLoaded(all_logs, read_log_ids, gtfo_path) => {
+                let view = MainView::new(all_logs, read_log_ids, gtfo_path);
                 *self = GtfoLogTracker::Loaded(view);
+            }
+            Message::NewLogRead(log_id) => {
+                if let GtfoLogTracker::Loaded(view) = self {
+                    if !view.read_log_ids.contains(&log_id) {
+                        view.read_log_ids.insert(log_id);
+                    }
+                }
             }
             Message::SyncHeader(offset) => {
                 if let GtfoLogTracker::Loaded(view) = self {
@@ -126,6 +140,15 @@ impl Application for GtfoLogTracker {
             GtfoLogTracker::Error(e) => layout(text(e)),
         }
     }
+
+    fn subscription(&self) -> Subscription<Self::Message> {
+        if let GtfoLogTracker::Loaded(view) = self {
+            game_log_watcher::watch(view.gtfo_path.clone(), view.all_logs.clone())
+                .map(Message::NewLogRead)
+        } else {
+            Subscription::none()
+        }
+    }
 }
 
 fn layout<'a>(
@@ -143,8 +166,8 @@ fn header(view: &MainView) -> Element<'_, Message, Renderer<Theme>> {
     row![
         container(text(format!(
             "{}/{} Read",
-            view.logs.iter().filter(|l| l.read).count(),
-            view.logs.len()
+            view.read_log_ids.len(),
+            view.all_logs.len()
         )))
         .align_x(Horizontal::Left)
         .width(Length::FillPortion(1)),
@@ -171,12 +194,14 @@ fn header(view: &MainView) -> Element<'_, Message, Renderer<Theme>> {
 fn log_table(view: &MainView) -> Responsive<'_, Message, Renderer<Theme>> {
     responsive(|size| {
         let filtered_rows: Vec<Row> = view
-            .logs
+            .all_logs
             .iter()
-            .filter_map(|r| match (view.hide_read, r.read) {
-                (true, true) => None,
-                _ => Some(map_log_to_rows(r)),
-            })
+            .filter_map(
+                |r| match (view.hide_read, view.read_log_ids.contains(&r.id)) {
+                    (true, true) => None,
+                    _ => Some(map_log_to_rows(r, &view.read_log_ids)),
+                },
+            )
             .flatten()
             .filter(|r| {
                 if view.filter.is_empty() {
@@ -237,12 +262,15 @@ impl<'a, 'b> table::Column<'a, 'b, Message, Renderer> for TableColumn {
     }
 }
 
-fn map_log_to_rows(log: &StoryLog) -> impl Iterator<Item = Row> + '_ {
+fn map_log_to_rows<'a>(
+    log: &'a StoryLog,
+    read_log_ids: &'a HashSet<u32>,
+) -> impl Iterator<Item = Row> + 'a {
     log.locations.iter().map(|loc| Row {
         level: format!("R{}{}", loc.rundown, loc.level),
         name: loc.name.to_string(),
         id: log.id,
-        read: log.read, //read_log_ids.contains(&log.id),
+        read: read_log_ids.contains(&log.id),
         zone: if loc.zones == vec![0] {
             "Outside".to_string()
         } else {
@@ -281,16 +309,20 @@ fn icon_read(read: bool) -> Text<'static> {
 }
 
 pub struct MainView {
-    logs: Vec<StoryLog>,
+    all_logs: Vec<StoryLog>,
+    read_log_ids: HashSet<u32>,
     hide_read: bool,
     filter: String,
     log_table: Table,
+    gtfo_path: PathBuf,
 }
 
 impl MainView {
-    fn new(logs: Vec<StoryLog>) -> Self {
+    fn new(all_logs: Vec<StoryLog>, read_log_ids: HashSet<u32>, gtfo_path: PathBuf) -> Self {
         Self {
-            logs,
+            all_logs,
+            read_log_ids,
+            gtfo_path,
             hide_read: false,
             filter: "".to_string(),
             log_table: Table {
