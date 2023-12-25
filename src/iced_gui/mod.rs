@@ -10,7 +10,7 @@ use iced::widget::{
     Responsive, Text,
 };
 use iced::{
-    alignment, executor, font, window, Alignment, Application, Command, Element, Font, Length,
+    executor, font, theme, window, Alignment, Application, Command, Element, Font, Length,
     Renderer, Settings, Subscription, Theme,
 };
 use iced_aw::Spinner;
@@ -347,18 +347,22 @@ fn comma_join(nums: &[u16]) -> String {
 }
 
 const ICONS: Font = Font::with_name("gtfo-tracker-icons");
-fn icon(unicode: char) -> Text<'static> {
+fn icon(unicode: char, style: theme::Text) -> Text<'static> {
     text(unicode.to_string())
         .font(ICONS)
         .width(20)
-        .horizontal_alignment(alignment::Horizontal::Center)
+        .style(style)
+        .horizontal_alignment(Horizontal::Center)
 }
 
 fn icon_read(read: bool) -> Text<'static> {
     if read {
-        icon('\u{ea52}')
+        icon(
+            '\u{ea52}',
+            theme::Text::Color(Theme::Light.extended_palette().primary.base.color),
+        )
     } else {
-        icon('\u{ea53}')
+        icon('\u{ea53}', theme::Text::Default)
     }
 }
 
