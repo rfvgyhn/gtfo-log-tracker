@@ -17,7 +17,7 @@ mod steam;
 #[derive(Default)]
 pub struct Options {
     pub gtfo_path: PathBuf,
-    pub only_parse_from_logs: bool,
+    pub use_playfab: bool,
 }
 
 static FILE_NAME_REGEX: Lazy<Regex> =
@@ -30,19 +30,19 @@ pub static LEVEL_CHANGE_REGEX: Lazy<Regex> =
 
 pub async fn get_logs(
     gtfo_path: PathBuf,
-    only_parse_from_logs: bool,
+    use_playfab: bool,
 ) -> Result<(Vec<StoryLog>, HashSet<u32>)> {
     let all_logs = game_data::load_logs()?;
-    let read_log_ids = if only_parse_from_logs {
-        get_read_log_ids_from_log_dir(&gtfo_path, &all_logs)
-    } else {
+    let read_log_ids = if use_playfab {
         get_read_log_ids_from_play_fab().await.or_else(|e| {
             println!(
-                "Unable to get read log data from PlayFab: {}. Falling back to parsing log files.",
+                "Unable to read log data from PlayFab: {}. Falling back to parsing log files.",
                 e
             );
             get_read_log_ids_from_log_dir(&gtfo_path, &all_logs)
         })
+    } else {
+        get_read_log_ids_from_log_dir(&gtfo_path, &all_logs)
     }?;
 
     Ok((all_logs, read_log_ids))

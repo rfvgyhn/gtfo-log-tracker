@@ -76,7 +76,7 @@ impl Application for GtfoLogTracker {
                 font::load(include_bytes!("../../fonts/icons.ttf").as_slice())
                     .map(Message::FontLoaded),
                 Command::perform(
-                    get_logs(options.gtfo_path.clone(), options.only_parse_from_logs),
+                    get_logs(options.gtfo_path.clone(), options.use_playfab),
                     |r| {
                         r.map(|(all_logs, read_log_ids)| {
                             Message::DataLoaded(all_logs, read_log_ids, options.gtfo_path)
