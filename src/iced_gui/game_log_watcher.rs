@@ -28,52 +28,60 @@ pub enum GameEvent {
     LevelSelected(String),
 }
 
+enum State {
+    NotWatching,
+    Watching(RecommendedWatcher, Receiver<notify::Result<Event>>),
+    Failed(anyhow::Error),
+}
+
 pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<GameEvent> {
     struct Watch;
 
-    async_watcher()
-        .and_then(|(mut watcher, rx)| {
-            watcher.watch(&path, RecursiveMode::NonRecursive)?;
-            println!("Watching '{}' for changes", path.display());
-            Ok((watcher, rx))
-        })
-        .map(|(watcher, mut rx)| {
-            subscription::channel(
-                std::any::TypeId::of::<Watch>(),
-                100,
-                |mut output| async move {
-                    let _w = watcher; // ensure watcher is captured
-                    loop {
-                        match rx.next().await {
-                            Some(Ok(Event {
-                                kind: EventKind::Create(_) | EventKind::Modify(_),
-                                paths,
-                                ..
-                            })) => {
-                                println!("{:?}", paths.first());
-                                if let Some(path) = paths.first() {
-                                    let (id, level) = get_latest_data(path, &logs);
-                                    if let Some(id) = id {
-                                        let _ = output.send(GameEvent::LogRead(id)).await;
-                                    }
-                                    if let Some(level) = level {
-                                        let _ = output.send(GameEvent::LevelSelected(level)).await;
-                                    }
+    subscription::channel(
+        std::any::TypeId::of::<Watch>(),
+        100,
+        |mut output| async move {
+            let mut state = State::NotWatching;
+
+            loop {
+                match state {
+                    State::NotWatching => {
+                        state = async_watcher()
+                            .and_then(|(mut watcher, rx)| {
+                                watcher.watch(&path, RecursiveMode::NonRecursive)?;
+                                println!("Watching '{}' for changes", path.display());
+                                Ok(State::Watching(watcher, rx))
+                            })
+                            .unwrap_or_else(|e| State::Failed(e.into()))
+                    }
+                    State::Watching(ref _watcher, ref mut rx) => match rx.next().await {
+                        Some(Ok(Event {
+                            kind: EventKind::Create(_) | EventKind::Modify(_),
+                            paths,
+                            ..
+                        })) => {
+                            if let Some(path) = paths.first() {
+                                let (id, level) = get_latest_data(path, &logs);
+                                if let Some(id) = id {
+                                    let _ = output.send(GameEvent::LogRead(id)).await;
+                                }
+                                if let Some(level) = level {
+                                    let _ = output.send(GameEvent::LevelSelected(level)).await;
                                 }
                             }
-                            Some(Err(e)) => {
-                                eprintln!("Failed to read file change - {e:?}");
-                            }
-                            _ => {}
                         }
+                        Some(Err(e)) => {
+                            eprintln!("Failed to read file change - {e:?}");
+                        }
+                        _ => {}
+                    },
+                    State::Failed(ref e) => {
+                        eprintln!("Unable to watch '{}' for changes - {:?}", path.display(), e)
                     }
-                },
-            )
-        })
-        .unwrap_or_else(|e| {
-            eprintln!("Unable to watch '{}' for changes - {:?}", path.display(), e);
-            Subscription::none()
-        })
+                }
+            }
+        },
+    )
 }
 
 fn get_latest_data(path: &Path, all_logs: &[StoryLog]) -> (Option<u32>, Option<String>) {
