@@ -55,7 +55,7 @@ of the columns.
     $ git clone https://github.com/rfvgyhn/gtfo-log-tracker
     $ cd gtfo-log-tracker
     $ cargo build --release
-    $ cp "target/release/build/steamworks-sys-*/out/libsteam_api* .
+    $ cp target/release/build/steamworks-sys-*/out/libsteam_api* target/release
     $ ./target/release/gtfo-log-tracker
     ```
 
