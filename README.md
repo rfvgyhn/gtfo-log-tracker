@@ -2,6 +2,8 @@
 Application for the game [GTFO] that reports terminal log progress for the
 _D-Lock Block Decipherer_ achievement.
 
+![screenshot]
+
 ## Installation
 
 This application doesn't require any installation. It's a standalone executable.
@@ -62,3 +64,4 @@ of the columns.
 [GTFO]: https://store.steampowered.com/app/493520/GTFO/
 [latest release]: https://github.com/rfvgyhn/gtfo-log-tracker/releases
 [install rust]: https://www.rust-lang.org/tools/install
+[screenshot]: https://rfvgyhn.blob.core.windows.net/images/gtfo-log-tracker.webp
