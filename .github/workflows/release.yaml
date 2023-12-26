@@ -1,0 +1,76 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish
+    strategy:
+      matrix:
+        kind: ['linux', 'windows']
+        include:
+          - kind: linux
+            os: ubuntu-latest
+          - kind: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Test
+        run: cargo test
+
+      - name: Lint
+        run: cargo clippy -- -D warnings
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Publish
+        run: ./package.sh "${{ matrix.kind }}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: artifacts/*
+          retention-days: 1
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts
+          path: artifacts
+
+      - name: Create Release Notes
+        run: ci/release-notes.sh
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          body_path: release-notes.md
+          files: |
+            artifacts/gtfo-log-tracker*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

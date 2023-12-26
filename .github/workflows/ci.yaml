@@ -1,0 +1,50 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        kind: ['linux', 'windows']
+        include:
+          - kind: linux
+            os: ubuntu-latest
+          - kind: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Test
+        run: cargo test
+
+      - name: Lint
+        run: cargo clippy -- -D warnings
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Version
+        id: version
+        shell: bash
+        run: |
+          echo "version-suffix=+ci$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
+          echo "file-name-version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml)-ci$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
+
+      - name: Publish
+        shell: bash
+        run: ci/build.sh "${{ matrix.kind }}" "${{ steps.version.outputs.file-name-version }}" "${{ steps.version.outputs.version-suffix }}"
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gtfo-log-tracker_${{ steps.version.outputs.file-name-version }}_${{ matrix.kind }}
+          path: "artifacts/**/*"
