@@ -148,7 +148,10 @@ impl Application for GtfoLogTracker {
                     }
                 }
             }
-            Message::Error(e) => *self = GtfoLogTracker::Error(e),
+            Message::Error(e) => {
+                log::error!("Error: {}", e);
+                *self = GtfoLogTracker::Error(e)
+            }
             Message::FontLoaded(Err(e)) => log::error!("Error loading font - {:?}", e),
             Message::FontLoaded(Ok(())) => {}
         }
