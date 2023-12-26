@@ -15,9 +15,10 @@ codegen-units = 1
 anyhow = "1.0.76"
 dirs = "5.0.1"
 futures = "0.3.29"
-iced = { version = "0.10.0", features = ["lazy", "tokio"] }
+iced = { version = "0.10.0", features = ["lazy", "tokio", "image"] }
 iced_aw = { version = "0.7.0", default-features = false, features = ["spinner"] }
 iced_table = "0.1.0"
+image = {version = "0.24.7", default-features = false, features = ["ico"] }
 log = "0.4.20"
 notify = "6.1.1"
 once_cell = "1.19.0"
@@ -32,3 +33,6 @@ tokio = { version = "1", features = ["full"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.52.0", features = ["Win32_UI_Shell", "Win32_Foundation"] }
+
+[build-dependencies]
+winresource = "0.1.17"

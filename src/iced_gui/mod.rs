@@ -27,9 +27,15 @@ pub enum GtfoLogTracker {
 
 impl GtfoLogTracker {
     pub fn settings(options: Options) -> Settings<Options> {
+        let icon = window::icon::from_file_data(
+            include_bytes!("../../resources/icon.ico"),
+            Some(image::ImageFormat::Ico),
+        )
+        .ok();
         Settings::<Options> {
             window: window::Settings {
                 size: (500, 600),
+                icon,
                 ..window::Settings::default()
             },
             flags: options,
@@ -73,7 +79,7 @@ impl Application for GtfoLogTracker {
         (
             GtfoLogTracker::Loading,
             Command::batch(vec![
-                font::load(include_bytes!("../../fonts/icons.ttf").as_slice())
+                font::load(include_bytes!("../../resources/icons.ttf").as_slice())
                     .map(Message::FontLoaded),
                 Command::perform(
                     get_logs(options.gtfo_path.clone(), options.use_playfab),
