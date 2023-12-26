@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -e
 
 target=${1:?"First arg should be target (linux|windows)"}
 file_name_version=${2:?"Second arg should be target file name version"}
@@ -15,5 +15,6 @@ release_name="gtfo-log-tracker_${file_name_version}_${target}"
 staging="$outdir/$release_name"
 mkdir -p "$staging"
 cp "${indir}"/build/steamworks-sys-*/out/*steam_api* "$staging/"
+rm "${staging}/*.lib"
 [ ! -f "${indir}/gtfo-log-tracker" ] || mv "${indir}/gtfo-log-tracker" "${staging}"
 [ ! -f "${indir}/gtfo-log-tracker.exe" ] || mv "${indir}/gtfo-log-tracker.exe" "${staging}"
