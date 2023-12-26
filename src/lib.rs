@@ -12,6 +12,7 @@ use time::{Date, Month, PrimitiveDateTime, Time};
 pub mod game_data;
 pub mod iced_gui;
 mod play_fab;
+#[cfg(target_os = "linux")]
 mod steam;
 
 #[derive(Default, Debug)]

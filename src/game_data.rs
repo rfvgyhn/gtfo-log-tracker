@@ -1,5 +1,4 @@
-use crate::steam;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -69,13 +68,22 @@ pub fn load_logs() -> Result<Vec<StoryLog>> {
 
 #[cfg(target_os = "linux")]
 pub fn find_user_data_path() -> Result<PathBuf> {
-    steam::find_proton_app_data_path()
+    crate::steam::find_proton_app_data_path()
         .map(|p| p.join("LocalLow/10 Chambers Collective/GTFO"))
-        .ok_or_else(|| anyhow!("Couldn't find compatdata AppData path"))
+        .ok_or_else(|| anyhow::anyhow!("Couldn't find compatdata AppData path"))
 }
 
 #[cfg(target_os = "windows")]
 pub fn find_user_data_path() -> Result<PathBuf> {
-    let app_data = std::env::var("APPDATA").map(PathBuf::from)?;
-    app_data.join(r"LocalLow\10 Chambers Collective\GTFO")
+    use std::str::FromStr;
+    use windows::Win32::UI::Shell::{
+        FOLDERID_LocalAppDataLow, SHGetKnownFolderPath, KNOWN_FOLDER_FLAG,
+    };
+
+    let local_app_data_path = unsafe {
+        SHGetKnownFolderPath(&FOLDERID_LocalAppDataLow, KNOWN_FOLDER_FLAG(0), None)?.to_string()?
+    };
+    PathBuf::from_str(local_app_data_path.as_str())
+        .map(|app_data| app_data.join(r"10 Chambers Collective\GTFO"))
+        .with_context(|| "Couldn't find AppData path")
 }

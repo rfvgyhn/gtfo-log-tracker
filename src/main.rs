@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use anyhow::{anyhow, Context, Result};
 use gtfo_log_tracker::iced_gui::GtfoLogTracker;
 use gtfo_log_tracker::{game_data, Options};

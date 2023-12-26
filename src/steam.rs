@@ -5,7 +5,6 @@ use std::path::PathBuf;
 
 const GTFO_APP_ID: u32 = 493520;
 
-#[cfg(target_os = "linux")]
 pub fn find_proton_app_data_path() -> Option<PathBuf> {
     let home = env::var_os("HOME").map(PathBuf::from)?;
 
