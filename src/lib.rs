@@ -1,5 +1,5 @@
 use crate::game_data::StoryLog;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use once_cell::sync::Lazy;
 use regex::{Match, Regex};
 use std::collections::HashSet;
@@ -14,7 +14,7 @@ pub mod iced_gui;
 mod play_fab;
 mod steam;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Options {
     pub gtfo_path: PathBuf,
     pub use_playfab: bool,
@@ -33,9 +33,12 @@ pub async fn get_logs(
     use_playfab: bool,
 ) -> Result<(Vec<StoryLog>, HashSet<u32>)> {
     let all_logs = game_data::load_logs()?;
+
+    log::info!("Total logs: {}", all_logs.len());
+
     let read_log_ids = if use_playfab {
         get_read_log_ids_from_play_fab().await.or_else(|e| {
-            println!(
+            log::warn!(
                 "Unable to read log data from PlayFab: {}. Falling back to parsing log files.",
                 e
             );
@@ -49,8 +52,11 @@ pub async fn get_logs(
 }
 
 async fn get_read_log_ids_from_play_fab() -> Result<HashSet<u32>> {
+    log::debug!("Getting log ids from Play Fab");
+    log::debug!("Initializing Steam");
     match steamworks::Client::init_app(493520) {
         Ok((steam_client, _)) => {
+            log::debug!("Getting steam auth session ticket");
             let (auth_ticket, ticket_bytes) = steam_client.user().authentication_session_ticket();
             let http_client = reqwest::Client::new();
             let user_data = match play_fab::login(&http_client, &ticket_bytes).await {
@@ -58,19 +64,23 @@ async fn get_read_log_ids_from_play_fab() -> Result<HashSet<u32>> {
                 Err(e) => Err(e),
             };
 
+            log::debug!("Cancelling steam auth session ticket");
             steam_client
                 .user()
                 .cancel_authentication_ticket(auth_ticket);
 
             let ids = user_data.map(|d| d.read_logs.value)?;
+            log::info!("{} Read logs: {:?}", ids.len(), ids);
             Ok(HashSet::from_iter(ids))
         }
-        Err(e) => Err(anyhow!(e)),
+        Err(e) => Err(anyhow!("Failed to init Steam - {e}")),
     }
 }
 
 fn get_read_log_ids_from_log_dir(path: &Path, logs: &[StoryLog]) -> Result<HashSet<u32>> {
-    let log_path = fs::read_dir(path)?
+    log::debug!("Getting log ids from local user data folder");
+    let log_path = fs::read_dir(path)
+        .with_context(|| format!("Couldn't read directory '{}'", path.display()))?
         .filter_map(Result::ok)
         .filter_map(|e| {
             let path = e.path();
@@ -88,11 +98,14 @@ fn get_read_log_ids_from_log_dir(path: &Path, logs: &[StoryLog]) -> Result<HashS
                 path.display()
             )
         })?;
-    let log_file = File::open(log_path)?;
+    let log_file = File::open(&log_path)
+        .with_context(|| format!("Couldn't open file '{}'", log_path.display()))?;
     let lines = BufReader::new(log_file).lines().map_while(Result::ok);
-    let read_ids = HashSet::from_iter(parse_read_ids(lines, logs));
+    let read_ids = parse_read_ids(lines, logs);
 
-    Ok(read_ids)
+    log::info!("{} Read logs: {:?}", read_ids.len(), read_ids);
+
+    Ok(HashSet::from_iter(read_ids))
 }
 
 pub fn try_get_log_id(m: &Match, all_logs: &[StoryLog]) -> Option<u32> {

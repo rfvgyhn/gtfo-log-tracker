@@ -86,6 +86,8 @@ const GTFO_TITLE_ID: &str = "8f9";
 
 pub async fn login(http_client: &reqwest::Client, steam_ticket: &[u8]) -> Result<SessionTicket> {
     let req_body = LoginRequest::new(GTFO_TITLE_ID, to_hex(steam_ticket));
+
+    log::debug!("Logging into Play Fab vis Steam");
     let res = http_client
         .post(format!(
             "https://{}.playfabapi.com/Client/LoginWithSteam",
@@ -107,6 +109,7 @@ pub async fn get_user_data(
     http_client: &reqwest::Client,
     session_ticket: SessionTicket,
 ) -> Result<UserData> {
+    log::debug!("Getting user data from Play Fab");
     let res = http_client
         .post(format!(
             "https://{}.playfabapi.com/Client/GetUserData",

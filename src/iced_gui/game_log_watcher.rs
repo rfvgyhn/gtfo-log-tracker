@@ -49,7 +49,7 @@ pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<GameEvent> {
                         state = async_watcher()
                             .and_then(|(mut watcher, rx)| {
                                 watcher.watch(&path, RecursiveMode::NonRecursive)?;
-                                println!("Watching '{}' for changes", path.display());
+                                log::debug!("Watching '{}' for changes", path.display());
                                 Ok(State::Watching(watcher, rx))
                             })
                             .unwrap_or_else(|e| State::Failed(e.into()))
@@ -71,12 +71,12 @@ pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<GameEvent> {
                             }
                         }
                         Some(Err(e)) => {
-                            eprintln!("Failed to read file change - {e:?}");
+                            log::error!("Failed to read file change - {e:?}");
                         }
                         _ => {}
                     },
                     State::Failed(ref e) => {
-                        eprintln!("Unable to watch '{}' for changes - {:?}", path.display(), e)
+                        log::error!("Unable to watch '{}' for changes - {:?}", path.display(), e)
                     }
                 }
             }

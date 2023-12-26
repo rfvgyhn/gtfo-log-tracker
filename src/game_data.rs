@@ -1,5 +1,5 @@
 use crate::steam;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -61,7 +61,8 @@ pub fn get_level_from_local(id: &str) -> Option<String> {
 }
 
 pub fn load_logs() -> Result<Vec<StoryLog>> {
-    let logs = serde_json::from_str::<Vec<StoryLog>>(include_str!("../data/logs.json"))?;
+    let logs = serde_json::from_str::<Vec<StoryLog>>(include_str!("../data/logs.json"))
+        .with_context(|| "Failed to parse logs.json")?;
 
     Ok(logs)
 }
