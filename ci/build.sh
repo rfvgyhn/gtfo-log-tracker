@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 target=${1:?"First arg should be target (linux|windows)"}
 file_name_version=${2:?"Second arg should be target file name version"}
