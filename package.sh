@@ -22,10 +22,12 @@ cp ./{README.md,LICENSE,CHANGELOG.md} "${indir}"/build/steamworks-sys-*/out/*ste
 rm "${staging}"/*.lib || true
 cp "$bin" "$staging/"
 
-if [ -f "${indir}/gtfo-log-tracker" ]; then
+if [ "$target" = "linux" ]; then
     tar czf "$staging.tar.gz" -C "$outdir" "$release_name"
 else
     pushd "$outdir"
     zip -r "$release_name.zip" "$release_name"
     popd
 fi
+
+rm -r "$staging"
