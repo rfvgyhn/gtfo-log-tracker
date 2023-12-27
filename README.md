@@ -62,7 +62,7 @@ Debug logging is placed in the standard log location for your operating system:
     $ git clone https://github.com/rfvgyhn/gtfo-log-tracker
     $ cd gtfo-log-tracker
     $ cargo build --release
-    $ cp target/release/build/steamworks-sys-*/out/libsteam_api* target/release
+    $ cp target/release/build/steamworks-sys-*/out/*steam_api* target/release
     $ ./target/release/gtfo-log-tracker
     ```
 
