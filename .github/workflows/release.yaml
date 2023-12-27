@@ -41,6 +41,7 @@ jobs:
         run: cargo build --verbose --release
 
       - name: Publish
+        shell: bash
         run: ./package.sh "${{ matrix.kind }}"
 
       - name: Upload artifacts
@@ -66,6 +67,7 @@ jobs:
           path: artifacts
 
       - name: Create Release Notes
+        shell: bash
         run: ci/release-notes.sh
 
       - name: Release
