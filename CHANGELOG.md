@@ -1,5 +1,10 @@
 # Changelog
 
+## [unreleased]
+
+### Bug Fixes
+* Prevent duplicate updates when handling log file updates
+
 ## [0.1.0] - 2023-12-26
 
 Initial release

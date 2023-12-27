@@ -42,6 +42,8 @@ pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<GameEvent> {
         100,
         |mut output| async move {
             let mut state = State::NotWatching;
+            let mut latest_id = None;
+            let mut latest_level = None;
 
             loop {
                 match state {
@@ -62,11 +64,21 @@ pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<GameEvent> {
                         })) => {
                             if let Some(path) = paths.first() {
                                 let (id, level) = get_latest_data(path, &logs);
-                                if let Some(id) = id {
-                                    let _ = output.send(GameEvent::LogRead(id)).await;
+
+                                if let (Some(new_id), _) = (id, id != latest_id) {
+                                    log::info!("new read log {new_id}");
+                                    let _ = output.send(GameEvent::LogRead(new_id)).await;
+                                    latest_id = id;
                                 }
-                                if let Some(level) = level {
-                                    let _ = output.send(GameEvent::LevelSelected(level)).await;
+
+                                if level != latest_level {
+                                    if let Some(ref new_level) = level {
+                                        log::info!("new level selected {new_level}");
+                                        let _ = output
+                                            .send(GameEvent::LevelSelected(new_level.clone()))
+                                            .await;
+                                        latest_level = level;
+                                    }
                                 }
                             }
                         }
