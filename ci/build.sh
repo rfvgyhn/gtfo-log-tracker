@@ -15,6 +15,6 @@ release_name="gtfo-log-tracker_${file_name_version}_${target}"
 staging="$outdir/$release_name"
 mkdir -p "$staging"
 cp "${indir}"/build/steamworks-sys-*/out/*steam_api* "$staging/"
-rm "${staging}/*.lib" || true
+rm "${staging}"/*.lib || true
 [ ! -f "${indir}/gtfo-log-tracker" ] || mv "${indir}/gtfo-log-tracker" "${staging}"
 [ ! -f "${indir}/gtfo-log-tracker.exe" ] || mv "${indir}/gtfo-log-tracker.exe" "${staging}"
