@@ -67,7 +67,7 @@ jobs:
 
       - name: Create Release Notes
         shell: bash
-        run: ci/release-notes.sh
+        run: ci/latest-changes.sh > release-notes.md
 
       - name: Release
         uses: softprops/action-gh-release@v1
