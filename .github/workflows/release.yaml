@@ -67,6 +67,9 @@ jobs:
         with:
           path: artifacts
 
+      - name: Show files
+        run: ls -R
+
       - name: Create Release Notes
         shell: bash
         run: ci/latest-changes.sh > release-notes.md
@@ -78,5 +81,3 @@ jobs:
           body_path: release-notes.md
           files: |
             artifacts/gtfo-log-tracker*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
