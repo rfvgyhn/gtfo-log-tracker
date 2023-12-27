@@ -25,9 +25,7 @@ cp "$bin" "$staging/"
 if [ "$target" = "linux" ]; then
     tar czf "$staging.tar.gz" -C "$outdir" "$release_name"
 else
-    pushd "$outdir"
-    zip -r "$release_name.zip" "$release_name"
-    popd
+    7z a "$staging.zip" "./$staging"
 fi
 
 rm -r "$staging"
