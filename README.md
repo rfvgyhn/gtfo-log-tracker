@@ -50,6 +50,11 @@ of the columns.
 | --playfab   | Get achievement progress from Play Fab                                                                                                 |
 | --data-path | Manually specify your GTFO data path if it can't automatically be found (`C:\Users\user\AppData\LocalLow\10 Chambers Collective\GTFO`) |
 
+### Troubleshooting
+Debug logging is placed in the standard log location for your operating system:
+* Windows - `%LOCALAPPDATA%\gtfo-log-tracker\log.txt`
+* Linux - `$XDG_STATE_HOME/gtfo-log-tracker/log.txt` (`~/.local/state` if `$XDG_STATE_HOME` isn't set)
+
 ## Build
 1. [Install Rust]
 2. Compile and run the binary:
