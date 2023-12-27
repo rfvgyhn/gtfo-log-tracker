@@ -36,6 +36,9 @@ jobs:
 
       - name: Format
         run: cargo fmt --all -- --check
+        
+      - name: Build
+        run: cargo build --verbose --release
 
       - name: Publish
         run: ./package.sh "${{ matrix.kind }}"
