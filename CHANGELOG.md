@@ -1,6 +1,6 @@
 # Changelog
 
-## [unreleased]
+## [0.1.1] - 2023-12-27
 
 ### Bug Fixes
 * Prevent duplicate updates when handling log file updates
@@ -9,5 +9,6 @@
 
 Initial release
 
-[unreleased]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/a4584bf0...HEAD
