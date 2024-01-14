@@ -11,7 +11,7 @@ This application doesn't require any installation. It's a standalone executable.
 1. Download the [latest release] for your operating system
 2. Extract 
    * Windows - right click file and select extract
-   * Linux - use your systems archive manager or `unzip`
+   * Linux - use your systems archive manager or `tar`
 3. Run the executable named _gtfo-log-tracker_
 
 ## Features
