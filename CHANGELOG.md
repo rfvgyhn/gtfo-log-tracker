@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.2] - 2024-01-14
 
 ### Bug Fixes
 * Fix duplicate _log read_ messages
@@ -14,6 +14,7 @@
 
 Initial release
 
-[unreleased]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.1...HEAD
+[unreleased]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/a4584bf0...HEAD
