@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+* Fix duplicate _log read_ messages
+
 ## [0.1.1] - 2023-12-27
 
 ### Bug Fixes

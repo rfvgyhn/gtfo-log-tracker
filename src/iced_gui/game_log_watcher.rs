@@ -65,7 +65,7 @@ pub fn watch(path: PathBuf, logs: Vec<StoryLog>) -> Subscription<GameEvent> {
                             if let Some(path) = paths.first() {
                                 let (id, level) = get_latest_data(path, &logs);
 
-                                if let (Some(new_id), _) = (id, id != latest_id) {
+                                if let (Some(new_id), true) = (id, id != latest_id) {
                                     log::info!("new read log {new_id}");
                                     let _ = output.send(GameEvent::LogRead(new_id)).await;
                                     latest_id = id;
