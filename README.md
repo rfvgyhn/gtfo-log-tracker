@@ -22,12 +22,19 @@ This application doesn't require any installation. It's a standalone executable.
 
   Using PlayFab will provide the most correct results, but you won't 
   be able to run the tracker at the same time as you play the game due to Steam 
-  limitations.
+  limitations. You can use the `--playfab` argument to fetch data from PlayFab.
 
-  Parsing from your log files can provide false positives since some
-  log names are shared between different log files. For example, _2MD-N3H-SYH_ is
-  the name of the log in _R7D1 205_ and _R8C1 249_ even though they are different 
-  logs. There aren't many of these issues though, so this is the default method.
+  Parsing from your log files can be less accurate. The game only fetches achievement
+  progress when the game starts. Since logs are counted as read for the whole team if one 
+  person in your team reads them and the game only writes to your log file when you read
+  them, the app won't see an update if a teammate reads a log until you start the game
+  again.
+  
+  Parsing from log files can also provide false positives since some log names are
+  shared between different log files. For example, _2MD-N3H-SYH_ is the name of the
+  log in _R7D1 205_ and _R8C1 249_ even though they are different logs.
+
+  The default is to read from your log files so the app can be run while you are playing.
 
 * **Auto-filter**
 
@@ -50,6 +57,21 @@ of the columns.
 | --playfab   | Get achievement progress from Play Fab                                                                                                 |
 | --data-path | Manually specify your GTFO data path if it can't automatically be found (`C:\Users\user\AppData\LocalLow\10 Chambers Collective\GTFO`) |
 
+#### Applying Arguments
+
+* You can apply arguments via your terminal emulator of choice (gnome-terminal, alacritty, CMD, Windows Terminal, etc...)
+  
+  `/path/to/gtfo-log-tracker --playfab`
+* On Windows, you can create a shortcut and append the argument in the _Target_ textbox
+  1. Right-click `gtfo-log-tracker.exe`
+  2. Select _Create Shortcut_
+  3. Right-click newly created shortcut
+  4. Select _Properties_
+  5. Select _Shortcut_ tab
+  6. Add your argument(s) to the _Target_ textbox
+  
+      ![target-example]
+
 ### Troubleshooting
 Debug logging is placed in the standard log location for your operating system:
 * Windows - `%LOCALAPPDATA%\gtfo-log-tracker\log.txt`
@@ -70,3 +92,4 @@ Debug logging is placed in the standard log location for your operating system:
 [latest release]: https://github.com/rfvgyhn/gtfo-log-tracker/releases
 [install rust]: https://www.rust-lang.org/tools/install
 [screenshot]: https://rfvgyhn.blob.core.windows.net/images/gtfo-log-tracker.webp
+[target-example]: https://rfvgyhn.blob.core.windows.net/images/gtfo-log-tracker-windows-shortcut.png
