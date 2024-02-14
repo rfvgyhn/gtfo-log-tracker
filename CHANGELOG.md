@@ -1,6 +1,6 @@
 # Changelog
 
-## [unreleased]
+## [0.1.3] - 2024-02-14
 
 ### Enhancements
 * Update log data to match GTFO's latest game data from 2024-02-14 patch
@@ -19,7 +19,8 @@
 
 Initial release
 
-[unreleased]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.2...HEAD
+[unreleased]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rfvgyhn/gtfo-log-tracker/compare/a4584bf0...HEAD

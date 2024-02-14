@@ -971,7 +971,7 @@ dependencies = [
 
 [[package]]
 name = "gtfo-log-tracker"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "dirs",
