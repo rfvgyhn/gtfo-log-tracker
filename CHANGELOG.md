@@ -1,5 +1,10 @@
 # Changelog
 
+## [unreleased]
+
+### Enhancements
+* Update log data to match GTFO's latest game data from 2024-02-14 patch
+
 ## [0.1.2] - 2024-01-14
 
 ### Bug Fixes

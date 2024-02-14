@@ -2054,27 +2054,6 @@
     ]
   },
   {
-    "id": 832966765,
-    "locations": [
-      {
-        "rundown": 7,
-        "level": "C3",
-        "zones": [
-          162
-        ],
-        "name": "T5V-HW4-8PW"
-      },
-      {
-        "rundown": 7,
-        "level": "D1",
-        "zones": [
-          205
-        ],
-        "name": "2MD-N3H-SYH"
-      }
-    ]
-  },
-  {
     "id": 278517562,
     "locations": [
       {
@@ -2088,16 +2067,21 @@
     ]
   },
   {
-    "id": 2373894974,
+    "id": 832966765,
     "locations": [
       {
         "rundown": 7,
         "level": "D1",
         "zones": [
-          198
+          205
         ],
-        "name": "98R-T5B-N57"
-      },
+        "name": "2MD-N3H-SYH"
+      }
+    ]
+  },
+  {
+    "id": 2373894974,
+    "locations": [
       {
         "rundown": 7,
         "level": "D2",
@@ -2115,7 +2099,6 @@
         "rundown": 7,
         "level": "E1",
         "zones": [
-          442,
           444
         ],
         "name": "60F-056-HNK"
